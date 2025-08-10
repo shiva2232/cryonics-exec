@@ -28,7 +28,6 @@ func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
 	}
 	url := fmt.Sprintf("https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands.json?auth=%s",
 		"cryonics-em-default-rtdb", uid, deviceId, token)
-	log.Println(url, "is url")
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		log.Printf("Failed to create request: %v", err)
@@ -86,7 +85,6 @@ func processCommandArray(token, uid, deviceId, data string) {
 	var commands model.CommandData
 	if err := json.Unmarshal([]byte(data), &commands); err != nil {
 		log.Printf("Failed to parse command array: %v", err)
-		log.Println("Failed to parse command array:", data)
 		return
 	}
 	log.Println(commands, commands.Data, "in mid")
