@@ -86,6 +86,7 @@ func processCommandArray(token, uid, deviceId, data string) {
 	var commands model.CommandData
 	if err := json.Unmarshal([]byte(data), &commands); err != nil {
 		log.Printf("Failed to parse command array: %v", err)
+		log.Println("Failed to parse command array:", data)
 		return
 	}
 	log.Println(commands, commands.Data, "in mid")
@@ -101,7 +102,7 @@ func executeAndReport(token, uid, deviceId string, index int, cmd model.Command)
 
 	updateCommandFields(token, uid, deviceId, index, map[string]interface{}{
 		"status":   "executing",
-		"issuedAt": time.Now().UTC(),
+		"issuedAt": time.Now().Unix(),
 	})
 
 	stdoutCh := make(chan string)
