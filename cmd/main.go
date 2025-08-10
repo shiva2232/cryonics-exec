@@ -8,6 +8,7 @@ import (
 	"cryonics/internal/realtime"
 	"cryonics/internal/utils"
 	"cryonics/server"
+	"flag"
 	"log"
 	"os"
 	"time"
@@ -24,7 +25,10 @@ func main() {
 	uid := os.Getenv("UID")
 	device := os.Getenv("DEVICEID")
 
-	if _, err := auth.VerifyFirebaseIDToken(context.Background(), token); token == "" || uid == "" || device == "" || err != nil {
+	var reauth = flag.Bool("nocache", false, "forces to reauthentication")
+	flag.Parse()
+
+	if _, err := auth.VerifyFirebaseIDToken(context.Background(), token); token == "" || uid == "" || device == "" || err != nil || *reauth {
 		port := "8080"
 		log.Println("visit localhost:" + port + "/ to run setup")
 		server := server.RunServer(port)
