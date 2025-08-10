@@ -1,16 +1,30 @@
 package iputils
 
 import (
+	"context"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"time"
 )
 
 func GetPublicIP() string {
 	// var resp *http.Response
 	// err := fmt.Errorf("it is error")
-	resp, err := http.Get("https://ifconfig.me/ip")
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// Always use "tcp4" to force IPv4
+			return (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext(ctx, "tcp4", addr)
+		},
+	}
+
+	client := &http.Client{Transport: transport}
+
+	resp, err := client.Get("https://ifconfig.me/ip")
 	if err != nil {
 		resp, err = http.Get("https://ipinfo.io/ip")
 		if err != nil {
