@@ -46,7 +46,7 @@ func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
 	defer resp.Body.Close()
 
 	reader := bufio.NewReader(resp.Body)
-	log.Println(resp.Body)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -87,10 +87,9 @@ func processCommandArray(token, uid, deviceId, data string) {
 		log.Printf("Failed to parse command array: %v", err)
 		return
 	}
-	log.Println(commands, commands.Data, "in mid")
 	for idx, cmd := range commands.Data {
 		if cmd.Status == "pending" {
-			log.Printf("Pending command found: -> %s", cmd.Action)
+			log.Println("executing ", cmd.Action)
 			go executeAndReport(token, uid, deviceId, idx, cmd)
 		}
 	}
