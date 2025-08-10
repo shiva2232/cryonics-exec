@@ -48,7 +48,7 @@ func main() {
 		}
 
 		utils.CreateEnv(usr.Token, usr.UID, deviceId)
-		realtime.ListenForCommands(context.Background(), usr.Token, usr.UID, deviceId)
+		go realtime.ListenForCommands(context.Background(), usr.Token, usr.UID, deviceId)
 
 		ticker := time.NewTicker(5 * time.Minute)
 
