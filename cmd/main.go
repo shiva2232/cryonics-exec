@@ -4,10 +4,11 @@ import (
 	"context"
 	"cryonics/internal/auth"
 	"cryonics/internal/handlers"
+	"cryonics/internal/metrics"
 	"cryonics/internal/realtime"
 	"cryonics/internal/utils"
+	"cryonics/server"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 )
 
 func main() {
-	keep := make(chan string, 1)
 	err := godotenv.Load(".env")
 	if err != nil {
 		// log.Fatal("Error loading .env file")
@@ -27,7 +27,7 @@ func main() {
 	if _, err := auth.VerifyFirebaseIDToken(context.Background(), token); token == "" || uid == "" || device == "" || err != nil {
 		port := "8080"
 		log.Println("visit localhost:" + port + "/ to run setup")
-		server := runServer(port)
+		server := server.RunServer(port)
 
 		usr := <-handlers.UserChan
 		// _, err = realtime.FetchUserDevices(usr.Token, usr.UID)
@@ -46,30 +46,34 @@ func main() {
 		utils.CreateEnv(usr.Token, usr.UID, deviceId)
 		realtime.ListenForCommands(context.Background(), usr.Token, usr.UID, deviceId)
 
-	} else {
-		realtime.ListenForCommands(context.Background(), token, uid, device)
-	}
+		ticker := time.NewTicker(5 * time.Minute)
 
-	<-keep
-}
+		defer ticker.Stop()
 
-func runServer(port string) *http.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", handlers.ServeIndex)
-	mux.HandleFunc("/select-device", handlers.ServeSelection)
-	mux.HandleFunc("/receive-device", handlers.ReceiveDeviceHandler)
-	mux.HandleFunc("/receive-token", handlers.ReceiveToken)
-	mux.HandleFunc("/thank-you", handlers.ServeThankYou)
-	// Configure server
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: mux,
-	}
-	go func() {
-		log.Printf("Server running at http://localhost:%s", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+		for {
+			point := metrics.GetMetrics()
+			err := realtime.UploadMetric(usr.UID, deviceId, usr.Token, point)
+			if err != nil {
+				log.Println("Upload error:", err)
+			}
+
+			<-ticker.C
 		}
-	}()
-	return server
+	} else {
+		go realtime.ListenForCommands(context.Background(), token, uid, device)
+
+		ticker := time.NewTicker(5 * time.Minute)
+
+		defer ticker.Stop()
+
+		for {
+			point := metrics.GetMetrics()
+			err := realtime.UploadMetric(uid, device, token, point)
+			if err != nil {
+				log.Println("Upload error:", err)
+			}
+
+			<-ticker.C
+		}
+	}
 }
