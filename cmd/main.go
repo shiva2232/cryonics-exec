@@ -4,8 +4,6 @@ import (
 	"context"
 	"cryonics/internal/auth"
 	"cryonics/internal/handlers"
-	"cryonics/internal/metrics"
-	"cryonics/internal/realtime"
 	"cryonics/internal/utils"
 	"cryonics/server"
 	"flag"
@@ -48,36 +46,8 @@ func main() {
 		}
 
 		utils.CreateEnv(usr.Token, usr.UID, deviceId)
-		go realtime.ListenForCommands(context.Background(), usr.Token, usr.UID, deviceId)
-
-		ticker := time.NewTicker(5 * time.Minute)
-
-		defer ticker.Stop()
-
-		for {
-			point := metrics.GetMetrics()
-			err := realtime.UploadMetric(usr.UID, deviceId, usr.Token, point)
-			if err != nil {
-				log.Println("Upload error:", err)
-			}
-
-			<-ticker.C
-		}
+		utils.UpdateIpAndMetrics(usr.UID, deviceId, usr.Token)
 	} else {
-		go realtime.ListenForCommands(context.Background(), token, uid, device)
-
-		ticker := time.NewTicker(5 * time.Minute)
-
-		defer ticker.Stop()
-
-		for {
-			point := metrics.GetMetrics()
-			err := realtime.UploadMetric(uid, device, token, point)
-			if err != nil {
-				log.Println("Upload error:", err)
-			}
-
-			<-ticker.C
-		}
+		utils.UpdateIpAndMetrics(uid, device, token)
 	}
 }

@@ -82,15 +82,27 @@ func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
 }
 
 func processCommandArray(token, uid, deviceId, data string) {
-	var commands model.CommandData
+	var commands map[string]interface{} // model.CommandData
 	if err := json.Unmarshal([]byte(data), &commands); err != nil {
 		log.Printf("Failed to parse command array: %v", err)
+		log.Println("Failed to data:" + data)
 		return
 	}
-	for idx, cmd := range commands.Data {
-		if cmd.Status == "pending" {
-			log.Println("executing ", cmd.Action)
-			go executeAndReport(token, uid, deviceId, idx, cmd)
+	if commands["path"] == "/" {
+		b, err := json.Marshal(commands["data"])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var cmds []model.Command
+		if err := json.Unmarshal(b, &cmds); err != nil {
+			log.Fatal(err)
+		}
+		for idx, cmd := range cmds {
+			if cmd.Status == "pending" {
+				log.Println("executing ", cmd.Action)
+				go executeAndReport(token, uid, deviceId, idx, cmd)
+			}
 		}
 	}
 }
