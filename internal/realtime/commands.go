@@ -15,10 +15,8 @@ import (
 	"cryonics/internal/model"
 )
 
-func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
+func ListenForCommands(ctx context.Context, uid, deviceId string) {
 	switch {
-	case token == "":
-		log.Println("token is empty")
 	case uid == "":
 		log.Println("uid is empty")
 	case deviceId == "":
@@ -26,8 +24,9 @@ func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
 	default:
 		log.Println("all values are Ok.")
 	}
-	url := fmt.Sprintf("https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands.json?auth=%s",
-		"cryonics-em-default-rtdb", uid, deviceId, token)
+	url := fmt.Sprintf("https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands.json",
+		"cryonics-em-default-rtdb", uid, deviceId)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		log.Printf("Failed to create request: %v", err)
@@ -75,13 +74,13 @@ func ListenForCommands(ctx context.Context, token, uid, deviceId string) {
 				if data == "null" || data == "" {
 					continue
 				}
-				processCommandArray(token, uid, deviceId, data)
+				processCommandArray(uid, deviceId, data)
 			}
 		}
 	}
 }
 
-func processCommandArray(token, uid, deviceId, data string) {
+func processCommandArray(uid, deviceId, data string) {
 	var commands map[string]interface{} // model.CommandData
 	if err := json.Unmarshal([]byte(data), &commands); err != nil {
 		log.Printf("Failed to parse command array: %v", err)
@@ -101,18 +100,20 @@ func processCommandArray(token, uid, deviceId, data string) {
 		for idx, cmd := range cmds {
 			if cmd.Status == "pending" {
 				log.Println("executing ", cmd.Action)
-				go executeAndReport(token, uid, deviceId, idx, cmd)
+				go executeAndReport(uid, deviceId, idx, cmd)
 			}
 		}
 	}
 }
 
-func executeAndReport(token, uid, deviceId string, index int, cmd model.Command) {
+func executeAndReport(uid, deviceId string, index int, cmd model.Command) {
 
-	updateCommandFields(token, uid, deviceId, index, map[string]interface{}{
+	updateCommandFields(uid, deviceId, index, map[string]interface{}{
 		"status":   "executing",
 		"issuedAt": time.Now().Unix(),
 	})
+	var outputs string = ""
+	var errs string = ""
 
 	stdoutCh := make(chan string)
 	stderrCh := make(chan string)
@@ -123,9 +124,13 @@ func executeAndReport(token, uid, deviceId string, index int, cmd model.Command)
 	for {
 		select {
 		case out := <-stdoutCh:
-			appendCommandOutput(token, uid, deviceId, index, "[STDOUT] "+out)
+			outputs = outputs + `
+` + out
+			appendCommandOutput(uid, deviceId, index, "[STDOUT] "+outputs)
 		case errout := <-stderrCh:
-			appendCommandOutput(token, uid, deviceId, index, "[STDERR] "+errout)
+			errs = errs + `
+` + errout
+			appendCommandOutput(uid, deviceId, index, "[STDERR] "+errs)
 		case err := <-doneCh:
 			endTime := time.Now()
 			status := "completed"
@@ -135,7 +140,7 @@ func executeAndReport(token, uid, deviceId string, index int, cmd model.Command)
 				errorMsg = err.Error()
 			}
 
-			updateCommandFields(token, uid, deviceId, index, map[string]interface{}{
+			updateCommandFields(uid, deviceId, index, map[string]interface{}{
 				"status":      status,
 				"completedAt": endTime.Unix(),
 				"errorMsg":    errorMsg,
@@ -145,10 +150,10 @@ func executeAndReport(token, uid, deviceId string, index int, cmd model.Command)
 	}
 }
 
-func updateCommandFields(token, uid, deviceId string, index int, fields map[string]interface{}) {
+func updateCommandFields(uid, deviceId string, index int, fields map[string]interface{}) {
 	url := fmt.Sprintf(
-		"https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands/%d.json?auth=%s",
-		"cryonics-em-default-rtdb", uid, deviceId, index, token,
+		"https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands/%d.json",
+		"cryonics-em-default-rtdb", uid, deviceId, index,
 	)
 
 	body, _ := json.Marshal(fields)
@@ -157,10 +162,10 @@ func updateCommandFields(token, uid, deviceId string, index int, fields map[stri
 	http.DefaultClient.Do(req)
 }
 
-func appendCommandOutput(token, uid, deviceId string, index int, line string) {
+func appendCommandOutput(uid, deviceId string, index int, line string) {
 	url := fmt.Sprintf(
-		"https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands/%d/output.json?auth=%s",
-		"cryonics-em-default-rtdb", uid, deviceId, index, token,
+		"https://%s.asia-southeast1.firebasedatabase.app/users/%s/%s/commands/%d/output.json",
+		"cryonics-em-default-rtdb", uid, deviceId, index,
 	)
 
 	body, _ := json.Marshal(line)

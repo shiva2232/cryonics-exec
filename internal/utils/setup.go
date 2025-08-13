@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -28,22 +29,24 @@ func CreateEnv(usrToken, usrUID, deviceId string) {
 	log.Println(".env file created successfully")
 }
 
-func UpdateIpAndMetrics(uid, deviceId, token string) {
-	go realtime.ListenForCommands(context.Background(), token, uid, deviceId)
+func UpdateIpAndMetrics(uid, deviceId string) {
+	go realtime.ListenForCommands(context.Background(), uid, deviceId)
 
 	ip := iputils.GetPublicIP()
-	realtime.SetIP(uid, deviceId, token, ip)
-	ticker := time.NewTicker(5 * time.Minute)
+	realtime.SetIP(uid, deviceId, ip)
+	if runtime.GOOS != "android" {
+		ticker := time.NewTicker(5 * time.Minute)
 
-	defer ticker.Stop()
+		defer ticker.Stop()
 
-	for {
-		point := metrics.GetMetrics()
-		err := realtime.UploadMetric(uid, deviceId, token, point)
-		if err != nil {
-			log.Println("Upload error:", err)
+		for {
+			point := metrics.GetMetrics()
+			err := realtime.UploadMetric(uid, deviceId, point)
+			if err != nil {
+				log.Println("Upload error:", err)
+			}
+
+			<-ticker.C
 		}
-
-		<-ticker.C
 	}
 }

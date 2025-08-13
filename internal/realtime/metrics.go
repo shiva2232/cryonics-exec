@@ -9,8 +9,8 @@ import (
 	"net/http"
 )
 
-func UploadMetric(uid, deviceID, token string, newMetric metrics.MetricPoint) error {
-	basePath := fmt.Sprintf("https://cryonics-em-default-rtdb.asia-southeast1.firebasedatabase.app/users/%s/%s/metrics.json?auth=%s", uid, deviceID, token)
+func UploadMetric(uid, deviceID string, newMetric metrics.MetricPoint) error {
+	basePath := fmt.Sprintf("https://cryonics-em-default-rtdb.asia-southeast1.firebasedatabase.app/users/%s/%s/metrics.json", uid, deviceID)
 
 	// Step 1: Read existing metrics
 	resp, err := http.Get(basePath)

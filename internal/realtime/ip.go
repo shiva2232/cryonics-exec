@@ -8,11 +8,11 @@ import (
 	"net/http"
 )
 
-func SetIP(uid, deviceID, token, ip string) error {
+func SetIP(uid, deviceID, ip string) error {
 	// Construct the Firebase RTDB path
 	url := fmt.Sprintf(
-		"https://cryonics-em-default-rtdb.asia-southeast1.firebasedatabase.app/users/%s/%s/ip.json?auth=%s",
-		uid, deviceID, token,
+		"https://cryonics-em-default-rtdb.asia-southeast1.firebasedatabase.app/users/%s/%s/ip.json",
+		uid, deviceID,
 	)
 
 	// Prepare the data (must be a JSON string in Firebase)
